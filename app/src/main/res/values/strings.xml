@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Notas</string>
+    <string name="acessibilidade_desc">Permite que a auto captura leia o texto copiado para o clipboard enquanto o Notas está em segundo plano. Sem isso, a captura só funciona com o app aberto na frente.</string>
+</resources>

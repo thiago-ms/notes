@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Tema base usado apenas para a janela inicial da Activity (a UI em si é
+      Jetpack Compose / Material 3). Herda do tema de plataforma DeviceDefault
+      sem ActionBar — disponível desde a API 21, sem depender de AppCompat.
+      A variante escura fica em values-night/themes.xml.
+    -->
+    <style name="Theme.Notes" parent="android:Theme.DeviceDefault.Light.NoActionBar" />
+
+    <!-- Activity de leitura do clipboard: 100% transparente, sem título e sem
+         animação de janela — para o "flash" ao tocar ser o mínimo possível. -->
+    <style name="Theme.Notes.Transparente" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>

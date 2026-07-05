@@ -1,0 +1,24 @@
+# Serviço de build. Uso típico via Makefile:
+#   make image   -> constrói esta imagem
+#   make wrapper -> gera o Gradle wrapper
+#   make apk     -> gera o APK debug
+#   make test    -> roda os testes unitários
+#
+# O projeto é montado em /workspace; o cache do Gradle fica em /workspace/.gradle
+# (GRADLE_USER_HOME), persistido entre execuções e pertencente ao usuário do host.
+services:
+  android:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: notes-android-build:latest
+    working_dir: /workspace
+    environment:
+      HOME: /workspace
+      GRADLE_USER_HOME: /workspace/.gradle
+      ANDROID_SDK_ROOT: /opt/android-sdk
+      ANDROID_HOME: /opt/android-sdk
+    volumes:
+      # :Z faz o relabel do SELinux (necessário em Fedora/RHEL) para o container
+      # poder ler/escrever no diretório montado.
+      - .:/workspace:Z

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Variante escura do tema base da janela inicial. -->
+    <style name="Theme.Notes" parent="android:Theme.DeviceDefault.NoActionBar" />
+</resources>
