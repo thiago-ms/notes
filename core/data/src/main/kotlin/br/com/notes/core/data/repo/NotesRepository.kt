@@ -10,6 +10,9 @@ import br.com.notes.core.data.model.RegraCaptura
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Contrato de dados do app. Persistência local via Room. Mantém também, **em
@@ -36,6 +39,15 @@ interface NotesRepository {
     suspend fun renomear(id: Long, nome: String)
     suspend fun atualizarConteudo(id: Long, conteudo: String)
     suspend fun remover(bloco: Bloco)
+
+    /**
+     * Mescla todos os blocos com o nome [nome] (ordenados por data de criação) num
+     * **bloco novo** chamado "<nome> (mesclado)", sem apagar os originais. Cada trecho
+     * recebe uma linha de cabeçalho identificando a origem (nome + data de criação, já
+     * que os nomes são iguais). Define o novo bloco como atual e devolve seu id; devolve
+     * `null` se houver menos de dois blocos com esse nome (nada a mesclar).
+     */
+    suspend fun mesclarPorNome(nome: String): Long?
 
     suspend fun adicionarRegra(texto: String)
     suspend fun removerRegra(regra: RegraCaptura)
@@ -134,6 +146,27 @@ class RoomNotesRepository(
         if (_blocoAtualId.value == bloco.id) {
             _blocoAtualId.value = dao.blocoMaisRecente()?.id
         }
+    }
+
+    override suspend fun mesclarPorNome(nome: String): Long? {
+        val blocos = dao.buscarTodosPorNome(nome)
+        if (blocos.size < 2) return null
+        val fmt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
+        val partes = blocos.map { b ->
+            val cabecalho = "--- de: ${b.nome} (criado ${fmt.format(Date(b.dataCriacao))}) ---"
+            if (b.conteudo.isBlank()) cabecalho else "$cabecalho\n${b.conteudo}"
+        }
+        val agora = agora()
+        val id = dao.inserirBloco(
+            Bloco(
+                nome = "$nome (mesclado)",
+                conteudo = partes.joinToString("\n\n"),
+                dataCriacao = agora,
+                dataAtualizacao = agora,
+            ),
+        )
+        _blocoAtualId.value = id
+        return id
     }
 
     override suspend fun adicionarRegra(texto: String) {

@@ -1,12 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Símbolo genérico centralizado na safe zone do ícone adaptativo. Troque ao
-     criar um app real. -->
+<!-- Folha / bloco de notas: página branca com canto dobrado e linhas de texto,
+     centralizada na safe zone (~66dp) do ícone adaptativo. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Página -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,32 L64,50 L54,68 L44,50 Z" />
+        android:pathData="M32,26 L64,26 L76,38 L76,82 L32,82 Z" />
+    <!-- Canto dobrado -->
+    <path
+        android:fillColor="#CFC7F5"
+        android:pathData="M64,26 L76,38 L64,38 Z" />
+    <!-- Linhas de texto -->
+    <path
+        android:strokeColor="#5B4BE8"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M40,48 L68,48 M40,56 L68,56 M40,64 L68,64 M40,72 L58,72" />
 </vector>

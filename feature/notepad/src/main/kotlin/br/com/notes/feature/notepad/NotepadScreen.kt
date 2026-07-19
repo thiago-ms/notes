@@ -15,9 +15,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlaylistRemove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,12 +28,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -52,6 +57,7 @@ import br.com.notes.core.data.repo.CapturePrefs
 import br.com.notes.core.data.repo.LinkAcao
 import br.com.notes.core.data.repo.NotesRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -69,7 +75,10 @@ fun NotepadScreen(onOpenConfig: () -> Unit) {
     val context = LocalContext.current
     val repo = remember { NotesRepository.get(context) }
     val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
     var editando by remember { mutableStateOf(true) }
+    var apagando by remember { mutableStateOf(false) }
+    var removendoDup by remember { mutableStateOf(false) }
     val corLink = MaterialTheme.colorScheme.primary
 
     // Ação ao tocar num link no modo visualização (config na engrenagem; padrão copiar).
@@ -124,6 +133,66 @@ fun NotepadScreen(onOpenConfig: () -> Unit) {
             delay(400)
             repo.atualizarConteudo(id, conteudo)
         }
+    }
+
+    if (removendoDup) {
+        val (resultado, removidas) = remember(conteudo) { removerLinhasDuplicadas(conteudo) }
+        AlertDialog(
+            onDismissRequest = { removendoDup = false },
+            title = { Text("Remover linhas duplicadas?") },
+            text = {
+                Text(
+                    if (removidas == 0) {
+                        "Nenhuma linha duplicada encontrada."
+                    } else {
+                        "$removidas linha(s) repetida(s) serão removidas, mantendo a " +
+                            "primeira ocorrência de cada uma."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = removidas > 0,
+                    onClick = {
+                        removendoDup = false
+                        conteudo = resultado
+                        Toast.makeText(context, "Duplicadas removidas", Toast.LENGTH_SHORT).show()
+                    },
+                ) { Text("Remover") }
+            },
+            dismissButton = {
+                TextButton(onClick = { removendoDup = false }) { Text("Cancelar") }
+            },
+        )
+    }
+
+    if (apagando) {
+        val alvo = bloco
+        AlertDialog(
+            onDismissRequest = { apagando = false },
+            title = { Text("Apagar bloco?") },
+            text = {
+                Text(
+                    "\"${alvo?.nome.orEmpty()}\" será removido. Esta ação não pode ser desfeita.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        apagando = false
+                        val atual = alvo ?: return@TextButton
+                        scope.launch {
+                            repo.remover(atual)
+                            // Se era o último bloco, recria um atual; senão cai no mais recente.
+                            repo.garantirBlocoAtual()
+                        }
+                    },
+                ) { Text("Apagar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { apagando = false }) { Text("Cancelar") }
+            },
+        )
     }
 
     Scaffold(
@@ -198,7 +267,7 @@ fun NotepadScreen(onOpenConfig: () -> Unit) {
                     }
                 }
             }
-            // Canto inferior esquerdo: copiar o conteúdo do bloco atual pro clipboard.
+            // Canto inferior: copiar o conteúdo do bloco atual e apagar o bloco.
             Row(Modifier.fillMaxWidth()) {
                 IconButton(
                     onClick = {
@@ -209,9 +278,47 @@ fun NotepadScreen(onOpenConfig: () -> Unit) {
                 ) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = "Copiar bloco")
                 }
+                IconButton(
+                    onClick = { removendoDup = true },
+                    enabled = conteudo.isNotBlank(),
+                ) {
+                    Icon(
+                        Icons.Filled.PlaylistRemove,
+                        contentDescription = "Remover linhas duplicadas",
+                    )
+                }
+                IconButton(
+                    onClick = { apagando = true },
+                    enabled = bloco != null,
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Apagar bloco")
+                }
             }
         }
     }
+}
+
+/**
+ * Remove linhas duplicadas mantendo a **primeira** ocorrência (ordem preservada). A
+ * comparação ignora espaços nas pontas; linhas **em branco nunca** são removidas (as
+ * capturas usam linha vazia como separador entre trechos). Devolve o texto resultante
+ * e quantas linhas foram removidas.
+ */
+private fun removerLinhasDuplicadas(texto: String): Pair<String, Int> {
+    val vistas = HashSet<String>()
+    val saida = ArrayList<String>()
+    var removidas = 0
+    for (linha in texto.split("\n")) {
+        val chave = linha.trim()
+        if (chave.isEmpty()) {
+            saida.add(linha)
+        } else if (vistas.add(chave)) {
+            saida.add(linha)
+        } else {
+            removidas++
+        }
+    }
+    return saida.joinToString("\n") to removidas
 }
 
 /** Pequeno helper: roda [bloco] em um LaunchedEffect chaveado no valor observado. */

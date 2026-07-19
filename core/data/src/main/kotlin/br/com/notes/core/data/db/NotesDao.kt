@@ -26,6 +26,9 @@ interface NotesDao {
     @Query("SELECT * FROM bloco WHERE nome = :nome LIMIT 1")
     suspend fun buscarPorNome(nome: String): Bloco?
 
+    @Query("SELECT * FROM bloco WHERE nome = :nome ORDER BY dataCriacao ASC")
+    suspend fun buscarTodosPorNome(nome: String): List<Bloco>
+
     @Query("SELECT * FROM bloco ORDER BY dataAtualizacao DESC LIMIT 1")
     suspend fun blocoMaisRecente(): Bloco?
 

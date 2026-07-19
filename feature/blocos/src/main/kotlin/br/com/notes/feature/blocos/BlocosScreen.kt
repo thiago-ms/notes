@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -66,8 +68,14 @@ fun BlocosScreen(
 
     val blocos by repo.observarBlocos().collectAsStateWithLifecycle(emptyList())
 
+    // Nomes que aparecem em mais de um bloco — só neles a ação de mesclar é oferecida.
+    val nomesRepetidos = remember(blocos) {
+        blocos.groupingBy { it.nome }.eachCount().filterValues { it > 1 }.keys
+    }
+
     var renomeando by remember { mutableStateOf<Bloco?>(null) }
     var apagando by remember { mutableStateOf<Bloco?>(null) }
+    var mesclando by remember { mutableStateOf<Bloco?>(null) }
 
     renomeando?.let { alvo ->
         var texto by remember(alvo.id) { mutableStateOf(alvo.nome) }
@@ -108,6 +116,32 @@ fun BlocosScreen(
         )
     }
 
+    mesclando?.let { alvo ->
+        val quantos = blocos.count { it.nome == alvo.nome }
+        AlertDialog(
+            onDismissRequest = { mesclando = null },
+            title = { Text("Mesclar blocos?") },
+            text = {
+                Text(
+                    "$quantos blocos chamados \"${alvo.nome}\" serão juntados num novo bloco " +
+                        "\"${alvo.nome} (mesclado)\". Os originais não serão apagados.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val nome = alvo.nome
+                    mesclando = null
+                    scope.launch {
+                        val id = repo.mesclarPorNome(nome)
+                        val msg = if (id != null) "Bloco mesclado criado" else "Nada a mesclar"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text("Mesclar") }
+            },
+            dismissButton = { TextButton(onClick = { mesclando = null }) { Text("Cancelar") } },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,7 +172,9 @@ fun BlocosScreen(
             items(blocos, key = { it.id }) { bloco ->
                 BlocoRow(
                     bloco = bloco,
+                    podeMesclar = bloco.nome in nomesRepetidos,
                     onAbrir = { onAbrir(bloco.id) },
+                    onMesclar = { mesclando = bloco },
                     onRenomear = { renomeando = bloco },
                     onApagar = { apagando = bloco },
                 )
@@ -150,7 +186,9 @@ fun BlocosScreen(
 @Composable
 private fun BlocoRow(
     bloco: Bloco,
+    podeMesclar: Boolean,
     onAbrir: () -> Unit,
+    onMesclar: () -> Unit,
     onRenomear: () -> Unit,
     onApagar: () -> Unit,
 ) {
@@ -177,6 +215,11 @@ private fun BlocoRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (podeMesclar) {
+                IconButton(onClick = onMesclar) {
+                    Icon(Icons.Filled.Merge, contentDescription = "Mesclar blocos de mesmo nome")
+                }
             }
             IconButton(onClick = onRenomear) {
                 Icon(Icons.Filled.Edit, contentDescription = "Renomear")
